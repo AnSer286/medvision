@@ -1,0 +1,14 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --cov=app --cov-report=term-missing"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "S"]
+ignore = ["S101"]  # assert разрешён в тестах
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
