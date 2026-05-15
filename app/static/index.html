@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedVision — классификация медицинских снимков</title>
+<style>
+  :root { --accent: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  header { background: var(--accent); color: #fff; padding: 1.2rem 2rem; }
+  header h1 { font-size: 1.3rem; font-weight: 600; }
+  header p { opacity: .85; font-size: .85rem; margin-top: .2rem; }
+  main { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+  .card { background: var(--card); border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 1.5rem; }
+  .drop { border: 2px dashed #94a3b8; border-radius: 12px; padding: 2.5rem; text-align: center; cursor: pointer; transition: .2s; }
+  .drop.drag { border-color: var(--accent); background: #eff6ff; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: .7rem 1.6rem; font-size: 1rem; cursor: pointer; margin-top: 1rem; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .results { display: none; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .results img { width: 100%; border-radius: 8px; }
+  .label { font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: .5rem; }
+  .verdict { font-size: 1.6rem; font-weight: 700; }
+  .bar { background: #e2e8f0; border-radius: 6px; height: 10px; overflow: hidden; margin: .3rem 0 .8rem; }
+  .bar > div { height: 100%; background: var(--accent); }
+  .warn { background: #fef3c7; border-radius: 8px; padding: .8rem 1rem; font-size: .85rem; margin-top: 1rem; }
+  #spinner { display: none; text-align: center; padding: 1rem; color: #64748b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>MedVision</h1>
+  <p>Классификация рентгенограмм грудной клетки с объяснением решений (Grad-CAM)</p>
+</header>
+<main>
+  <div class="card">
+    <div class="drop" id="drop">
+      <p><strong>Перетащите снимок</strong> (JPEG/PNG) или нажмите для выбора файла</p>
+      <input type="file" id="file" accept="image/jpeg,image/png" hidden>
+    </div>
+    <button id="run" disabled>Анализировать</button>
+    <div id="spinner">Анализ снимка…</div>
+  </div>
+
+  <div class="card results" id="results">
+    <div>
+      <div class="label">Исходный снимок</div>
+      <img id="orig" alt="Исходный снимок">
+    </div>
+    <div>
+      <div class="label">Grad-CAM: области внимания модели</div>
+      <img id="cam" alt="Grad-CAM">
+    </div>
+    <div style="grid-column: 1 / -1">
+      <div class="label">Результат</div>
+      <div class="verdict" id="verdict"></div>
+      <div id="probs" style="margin-top:1rem"></div>
+      <div class="warn">⚠️ Сервис носит учебный характер и не является медицинским изделием.
+        Результат не заменяет консультацию врача.</div>
+    </div>
+  </div>
+</main>
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const runBtn = document.getElementById('run');
+let selected = null;
+
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('drag'); };
+drop.ondragleave = () => drop.classList.remove('drag');
+drop.ondrop = e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+};
+fileInput.onchange = () => { if (fileInput.files.length) setFile(fileInput.files[0]); };
+
+function setFile(f) {
+  selected = f;
+  drop.querySelector('p').innerHTML = `Выбран файл: <strong>${f.name}</strong>`;
+  runBtn.disabled = false;
+}
+
+runBtn.onclick = async () => {
+  if (!selected) return;
+  runBtn.disabled = true;
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('file', selected);
+  try {
+    const resp = await fetch('/api/v1/analyze', { method: 'POST', body: fd });
+    if (!resp.ok) {
+      const err = await resp.json();
+      alert('Ошибка: ' + (err.detail || resp.status));
+      return;
+    }
+    const data = await resp.json();
+    document.getElementById('orig').src = URL.createObjectURL(selected);
+    document.getElementById('cam').src = 'data:image/png;base64,' + data.gradcam_png_base64;
+    document.getElementById('verdict').textContent =
+      `${data.predicted_class} (${(data.confidence * 100).toFixed(1)}%)`;
+    document.getElementById('probs').innerHTML = Object.entries(data.probabilities)
+      .map(([k, v]) => `<div>${k} — ${(v * 100).toFixed(1)}%</div>
+        <div class="bar"><div style="width:${v * 100}%"></div></div>`).join('');
+    document.getElementById('results').style.display = 'grid';
+  } catch (e) {
+    alert('Сетевая ошибка: ' + e.message);
+  } finally {
+    runBtn.disabled = false;
+    document.getElementById('spinner').style.display = 'none';
+  }
+};
+</script>
+</body>
+</html>
