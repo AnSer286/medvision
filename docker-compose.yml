@@ -1,0 +1,17 @@
+services:
+  medvision:
+    build: .
+    container_name: medvision
+    ports:
+      - "8000:8000"
+    environment:
+      MEDVISION_DEVICE: cpu
+    volumes:
+      - ./models:/srv/models:ro
+    restart: unless-stopped
+    # Безопасность контейнера
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
