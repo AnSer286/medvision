@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Установка зависимостей (CPU-сборка PyTorch)
+        run: |
+          pip install -r requirements-dev.txt \
+            --extra-index-url https://download.pytorch.org/whl/cpu
+      - name: Линтер (ruff)
+        run: ruff check app tests
+      - name: SAST-анализ (bandit)
+        run: bandit -r app -c pyproject.toml
+      - name: Проверка зависимостей (pip-audit)
+        run: pip-audit -r requirements.txt || true
+      - name: Тесты с покрытием
+        run: pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка Docker-образа
+        run: docker build -t medvision:ci .
