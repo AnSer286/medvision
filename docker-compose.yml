@@ -6,6 +6,7 @@ services:
       - "8000:8000"
     environment:
       MEDVISION_DEVICE: cpu
+      TORCH_HOME: /tmp/torch
     volumes:
       - ./models:/srv/models:ro
     restart: unless-stopped
