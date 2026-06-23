@@ -1,32 +1,32 @@
 @echo off
 echo ================================
-echo PUSH изменений в репозиторий
+echo PUSH changes to repository
 echo ================================
 cd /d "%~dp0"
 
-REM Получаем текущую ветку
+REM Getting current branch
 for /f %%i in ('git branch --show-current') do set current_branch=%%i
-echo Текущая ветка: %current_branch%
+echo Current branch: %current_branch%
 
-REM Показываем статус
+REM Showing status
 echo.
-echo Статус изменений:
+echo Changes status:
 git status --short
 
 echo.
-set /p commit_msg="Введите сообщение коммита (или нажмите Enter для 'Обновление'): "
-if "%commit_msg%"=="" set commit_msg=Обновление
+set /p commit_msg="Enter commit message (or press Enter for 'Update'): "
+if "%commit_msg%"=="" set commit_msg=Update
 
 echo.
-echo Добавляем все изменения...
+echo Attaching updates...
 git add .
 
-echo Коммитим с сообщением: "%commit_msg%"
+echo Committing with the message: "%commit_msg%"
 git commit -m "%commit_msg%"
 
-echo Пушим в origin/%current_branch%...
+echo Pushing to origin/%current_branch%...
 git push origin %current_branch%
 
 echo.
-echo Готово!
+echo Done!
 pause
